@@ -89,14 +89,24 @@ def next_page(vendor, page):
         try:
             urllib.request.urlretrieve(image_url, filepath)
             print(filename, image_url)
-        except urllib.request.HTTPError:
+        except (urllib.request.HTTPError, urllib.request.URLError):
             try:
                 urllib.request.urlretrieve(little_image_url, filepath)
                 print(filename, little_image_url)
-            except (urllib.request.HTTPError, urllib.request.URLError) as err:
-                print(err)
+            except (urllib.request.HTTPError, urllib.request.URLError):
                 image.save(filepath, "PNG")
                 print(filename, 'empty image')
+        except urllib.request.ContentTooShortError:
+            try:
+                urllib.request.urlretrieve(image_url, filepath)
+                print(filename, image_url)
+            except (urllib.request.HTTPError, urllib.request.URLError):
+                try:
+                    urllib.request.urlretrieve(little_image_url, filepath)
+                    print(filename, little_image_url)
+                except (urllib.request.HTTPError, urllib.request.URLError):
+                    image.save(filepath, "PNG")
+                    print(filename, 'empty image')
 
     next_page(vendor, page + 1)
 
