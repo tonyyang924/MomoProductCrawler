@@ -28,7 +28,7 @@ def get_number(text):
 
 
 def load_vendors():
-    with open('catchimg3.json') as data_file:
+    with open('catchimg3.json', encoding='utf8') as data_file:
         data = json.load(data_file)
     bigkey = data['bigkey']
 
