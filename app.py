@@ -58,6 +58,8 @@ def next_page(vendor, page):
             EC.element_to_be_clickable((By.XPATH, '//*[@id="BodyBase"]/div[2]/div[6]/dl/dd/a[text()="下一頁"]')))
         element.click()
         time.sleep(2.5)
+    else:
+        time.sleep(2.5)
 
     print('=====' + vendor + '==========開始爬第' + str(page) + '頁==========')
 
