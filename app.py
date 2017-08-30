@@ -39,7 +39,7 @@ def load_vendors():
 
 
 def crawler_vendor(vendor):
-    create_directory(root_vendor_directory + '/' + vendor)
+    create_directory(vendor_directory + '/' + vendor)
     driver.get('https://www.momoshop.com.tw/search/searchShop.jsp?keyword=' + vendor + '&p_lgrpCode=')
     trigger_click_page(vendor)
 
@@ -63,7 +63,7 @@ def next_page(vendor, page):
 
     print('=====' + vendor + '==========開始爬第' + str(page) + '頁==========')
 
-    directory = root_vendor_directory + '/' + vendor + '/' + str(page)
+    directory = vendor_directory + '/' + vendor + '/' + str(page)
     create_directory(directory)
 
     soup = BeautifulSoup(driver.page_source, 'html.parser')
@@ -107,9 +107,10 @@ momo_url = 'https://www.momoshop.com.tw'
 pattern = "[-`~!@#$^&*()=|{}':;',\\[\\].<>/?~！@#￥……&*（）&;|{}【】‘；：”“'。，、？+ ]"
 image = Image.new('RGB', (1, 1), (255, 255, 255))
 
-# 建立主要的vendor資料夾
-root_vendor_directory = 'vendor'
-create_directory(root_vendor_directory)
+result_directory = 'result'
+create_directory(result_directory)
+vendor_directory = result_directory + '/vendor'
+create_directory(vendor_directory)
 
 vendors = load_vendors()
 for vendor in vendors:
