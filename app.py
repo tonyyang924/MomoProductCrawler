@@ -3,6 +3,7 @@ import re
 import time
 import json
 import urllib.request
+from pymongo import MongoClient
 from PIL import Image
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -99,8 +100,20 @@ def next_page(vendor, page):
                 image.save(filepath, "PNG")
                 print(filename, 'empty image')
 
+        # save db
+        table_vendor.insert_one({
+            "vendor": vendor,
+            "img_id": the_id,
+            "ch_name": name,
+        })
+
     next_page(vendor, page + 1)
 
+
+# MonGo DB
+client = MongoClient()
+db = client.surpass
+table_vendor = db.vendor
 
 driver = webdriver.Chrome()
 momo_url = 'https://www.momoshop.com.tw'
