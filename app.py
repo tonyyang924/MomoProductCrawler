@@ -41,26 +41,12 @@ def load_vendors():
 
 def crawler_vendor(vendor):
     create_directory(vendor_directory + '/' + vendor)
-    driver.get('https://www.momoshop.com.tw/search/searchShop.jsp?keyword=' + vendor + '&p_lgrpCode=')
-    trigger_click_page(vendor)
-
-
-def trigger_click_page(vendor):
-    try:
-        next_page(vendor, 1)
-    except WebDriverException:
-        print('『' + vendor + '』找不到下一頁的按鈕。')
+    next_page(vendor, 1)
 
 
 def next_page(vendor, page):
-    if page != 1:
-        delay = 5
-        element = WebDriverWait(driver, delay).until(
-            EC.element_to_be_clickable((By.XPATH, '//*[@id="BodyBase"]/div[2]/div[6]/dl/dd/a[text()="下一頁"]')))
-        element.click()
-        time.sleep(2.5)
-    else:
-        time.sleep(2.5)
+    driver.get('https://www.momoshop.com.tw/search/searchShop.jsp?keyword=' + vendor + '&curPage=' + str(page))
+    time.sleep(2.5)
 
     print('=====' + vendor + '==========開始爬第' + str(page) + '頁==========')
 
@@ -74,17 +60,17 @@ def next_page(vendor, page):
         # 產品編號
         the_id = item_li['gcode']
         # 產品網址
-        url = momo_url + item['href']
+        # url = momo_url + item['href']
         # 產品大圖網址，置換小的圖片網址為大的
         little_image_url = item.find('img')['src']
         image_url = little_image_url.replace('L.jpg', 'B.jpg')
         # 產品名稱
         name = item.find('p', {'class': 'prdName'}).text
         # 產品Slogan
-        slogan = item.find('p', {'class': 'sloganTitle'}).text
+        # slogan = item.find('p', {'class': 'sloganTitle'}).text
         # 產品價格
         money_text = item.find('p', {'class': 'money'}).text
-        money = get_number(money_text)
+        # money = get_number(money_text)
         # print(url, image_url, name, slogan, money)
 
         filename = vendor + '_' + re.sub(pattern, "", name) + '_' + the_id + '.jpg'
