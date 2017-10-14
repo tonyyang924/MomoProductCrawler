@@ -41,12 +41,30 @@ def load_vendors():
 
 def crawler_vendor(vendor):
     create_directory(vendor_directory + '/' + vendor)
-    next_page(vendor, 1)
+    trigger_click_page(vendor)
+
+
+def trigger_click_page(vendor):
+    try:
+        next_page(vendor, 1)
+    except WebDriverException:
+        print('『' + vendor + '』找不到下一頁的按鈕。')
 
 
 def next_page(vendor, page):
+    global vendor_max_page
+
+    if page > 1 and page > vendor_max_page:
+        print(vendor + '沒有下一頁了')
+        return
+
     driver.get('https://www.momoshop.com.tw/search/searchShop.jsp?keyword=' + vendor + '&curPage=' + str(page))
     time.sleep(2.5)
+
+    if page == 1:
+        elements = driver.find_elements_by_xpath("//div[@class='pageArea']/ul/li/a")
+        vendor_max_page = int(elements[-1].get_attribute('pageidx'))
+        print("﹝%s﹞總共有 %d 頁" % (vendor, vendor_max_page))
 
     print('=====' + vendor + '==========開始爬第' + str(page) + '頁==========')
 
@@ -110,6 +128,8 @@ result_directory = 'result'
 create_directory(result_directory)
 vendor_directory = result_directory + '/vendor'
 create_directory(vendor_directory)
+
+vendor_max_page = 0
 
 vendors = load_vendors()
 for vendor in vendors:
