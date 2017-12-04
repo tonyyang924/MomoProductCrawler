@@ -68,8 +68,7 @@ def next_page(vendor, page):
 
     print('=====' + vendor + '==========開始爬第' + str(page) + '頁==========')
 
-    directory = vendor_directory + '/' + vendor + '/' + str(page)
-    create_directory(directory)
+    directory = vendor_directory + '/' + vendor
 
     soup = BeautifulSoup(driver.page_source, 'html.parser')
     list_area = soup.find('div', {'class': 'listArea'}).find('ul')
