@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 
 
 class Crawler:
-    driver = webdriver.Chrome("C:/chromedriver_win32/chromedriver.exe")
+    driver = webdriver.Chrome()
     momo_url = 'https://www.momoshop.com.tw'
     pattern = "[-`~!@#$^&*()=|{}':;',\\[\\].<>/?~！@#￥……&*（）&;|{}【】‘；：”“'。，、？+ ]"
     image = Image.new('RGB', (1, 1), (255, 255, 255))
@@ -139,8 +139,8 @@ class Crawler:
 
 
 def main():
-    if len(sys.argv) > 1 and type(sys.argv[1] is int):
-        crawler = Crawler('result', sys.argv[1] == 1)
+    if len(sys.argv) > 0 and type(sys.argv[0] is int):
+        crawler = Crawler('result', sys.argv[0] == 1)
     else:
         crawler = Crawler('result', False)
 
