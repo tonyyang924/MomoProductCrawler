@@ -10,7 +10,10 @@ from PIL import Image
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 from bs4 import BeautifulSoup
+from enum import Enum
 
+class DbType(Enum):
+    MONGO = 'mongo'
 
 class Crawler:
     driver = webdriver.Chrome()
@@ -23,7 +26,7 @@ class Crawler:
     db = client.surpass
     is_write_db = False
 
-    def __init__(self, result_directory, is_write_db):
+    def __init__(self, result_directory, dbtype):
         # result_directory = 'result'
         self.result_directory = result_directory
         self.vendor_directory = result_directory + '/vendor'
@@ -31,7 +34,8 @@ class Crawler:
         self.create_directory(self.vendor_directory)
         self.vendors = self.load_vendors()
         self.table_vendor = self.db.vendor
-        self.is_write_db = is_write_db
+        if dbtype == DbType.MONGO.value:
+            self.is_write_db = True
 
     def start(self):
         for vendor in self.vendors:
@@ -139,10 +143,11 @@ class Crawler:
 
 
 def main():
-    if len(sys.argv) > 1 and type(sys.argv[1] is int):
-        crawler = Crawler('result', sys.argv[1] == 1)
+    if len(sys.argv) > 1 and type(sys.argv[1] is str):
+        dbtype = sys.argv[1]
+        crawler = Crawler('result', dbtype)
     else:
-        crawler = Crawler('result', False)
+        crawler = Crawler('result', "")
 
     crawler.start()
 
