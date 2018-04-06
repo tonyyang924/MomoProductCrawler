@@ -12,8 +12,6 @@ from selenium.common.exceptions import WebDriverException
 from bs4 import BeautifulSoup
 from enum import Enum
 
-class DbType(Enum):
-    MONGO = 'mongo'
 
 class Crawler:
     driver = webdriver.Chrome()
@@ -24,7 +22,7 @@ class Crawler:
     # MonGo DB
     client = MongoClient()
     db = client.surpass
-    is_write_db = False
+    write_db_list = []
 
     def __init__(self, result_directory, dbtype):
         # result_directory = 'result'
@@ -35,7 +33,7 @@ class Crawler:
         self.vendors = self.load_vendors()
         self.table_vendor = self.db.vendor
         if dbtype == DbType.MONGO.value:
-            self.is_write_db = True
+            self.write_db_list.append(DbType.MONGO.value)
 
     def start(self):
         for vendor in self.vendors:
@@ -84,11 +82,13 @@ class Crawler:
             print(vendor + '沒有下一頁了')
             return
 
-        self.driver.get('https://www.momoshop.com.tw/search/searchShop.jsp?keyword=' + vendor + '&curPage=' + str(page))
+        self.driver.get(
+            'https://www.momoshop.com.tw/search/searchShop.jsp?keyword=' + vendor + '&curPage=' + str(page))
         time.sleep(2.5)
 
         if page == 1:
-            elements = self.driver.find_elements_by_xpath("//div[@class='pageArea']/ul/li/a")
+            elements = self.driver.find_elements_by_xpath(
+                "//div[@class='pageArea']/ul/li/a")
             self.vendor_max_page = int(elements[-1].get_attribute('pageidx'))
             print("﹝%s﹞總共有 %d 頁" % (vendor, self.vendor_max_page))
 
@@ -116,7 +116,8 @@ class Crawler:
             # money = get_number(money_text)
             # print(url, image_url, name, slogan, money)
 
-            filename = vendor + '_' + re.sub(self.pattern, "", name) + '_' + the_id + '.jpg'
+            filename = vendor + '_' + \
+                re.sub(self.pattern, "", name) + '_' + the_id + '.jpg'
             filepath = directory + '/' + filename
             try:
                 urllib.request.urlretrieve(image_url, filepath)
@@ -132,23 +133,36 @@ class Crawler:
                     print(filename, 'empty image')
 
             # save db
-            if self.is_write_db:
-                self.table_vendor.insert_one({
-                    "vendor": vendor,
-                    "img_id": the_id,
-                    "ch_name": name,
-                })
+            self.writeDb(self.table_vendor, vendor, the_id, name)
 
         self.next_page(vendor, page + 1)
 
+    def writeDb(self, table, vendor, img_id, ch_name):
+        for db_name in self.write_db_list:
+            if db_name == DbType.MONGO.value:
+                table.insert_one({
+                    "vendor": vendor,
+                    "img_id": img_id,
+                    "ch_name": ch_name,
+                })
+        
+
+class Instruction(Enum):
+    DBTYPE = "-d"
+
+
+class DbType(Enum):
+    MONGO = "mongo"
+
 
 def main():
+    dbtype = ""
     if len(sys.argv) > 1 and type(sys.argv[1] is str):
-        dbtype = sys.argv[1]
-        crawler = Crawler('result', dbtype)
-    else:
-        crawler = Crawler('result', "")
-
+        argu = sys.argv[1]
+        argus = re.split(" ", argu)
+        if argus[0] == Instruction.DBTYPE.value:
+            dbtype = argus[1]
+    crawler = Crawler('result', dbtype)
     crawler.start()
 
 
