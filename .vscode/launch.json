@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "mongo", 
+                "-d mongo", 
              ]
         },
         {
