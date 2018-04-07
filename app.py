@@ -19,6 +19,7 @@ class Crawler:
     momo_url = 'https://www.momoshop.com.tw'
     pattern = "[-`~!@#$^&*()=|{}':;',\\[\\].<>/?~！@#￥……&*（）&;|{}【】‘；：”“'。，、？+ ]"
     image = Image.new('RGB', (1, 1), (255, 255, 255))
+    delay_second = 5
     vendor_max_page = 0
     # MonGo DB
     client = MongoClient()
@@ -77,20 +78,29 @@ class Crawler:
         except WebDriverException:
             print('『' + vendor + '』找不到下一頁的按鈕。')
 
-    def next_page(self, vendor, page):
+    def get_vendor_max_page(self, page):
+        elements = self.driver.find_elements_by_xpath(
+            "//div[@class='pageArea']/ul/li/a")
+        try:
+            self.vendor_max_page = int(elements[-1].get_attribute('pageidx'))
+        except IndexError:
+            print(elements)
+            self.driver.refresh
+            time.sleep(10)
+            self.get_vendor_max_page(page)
+            
 
+    def next_page(self, vendor, page):
         if page > 1 and page > self.vendor_max_page:
             print(vendor + '沒有下一頁了')
             return
 
         self.driver.get(
             'https://www.momoshop.com.tw/search/searchShop.jsp?keyword=' + vendor + '&curPage=' + str(page))
-        time.sleep(2.5)
+        time.sleep(self.delay_second)
 
         if page == 1:
-            elements = self.driver.find_elements_by_xpath(
-                "//div[@class='pageArea']/ul/li/a")
-            self.vendor_max_page = int(elements[-1].get_attribute('pageidx'))
+            self.get_vendor_max_page(page)
             print("﹝%s﹞總共有 %d 頁" % (vendor, self.vendor_max_page))
 
         print('=====' + vendor + '==========開始爬第' + str(page) + '頁==========')
@@ -163,7 +173,7 @@ def main():
         argus = re.split(" ", argu)
         if argus[0] == Instruction.DBTYPE.value:
             dbtype = argus[1]
-    crawler = Crawler('result', dbtype)
+    crawler = Crawler('../result', dbtype)
     crawler.start()
 
 
