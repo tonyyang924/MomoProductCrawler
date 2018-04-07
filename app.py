@@ -85,7 +85,7 @@ class Crawler:
             self.vendor_max_page = int(elements[-1].get_attribute('pageidx'))
         except IndexError:
             print(elements)
-            self.driver.refresh
+            self.driver.refresh()
             time.sleep(10)
             self.get_vendor_max_page(page)
             
