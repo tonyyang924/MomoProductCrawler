@@ -78,16 +78,16 @@ class Crawler:
         except WebDriverException:
             print('『' + vendor + '』找不到下一頁的按鈕。')
 
-    def get_vendor_max_page(self, page):
+    def get_vendor_max_page(self, vendor, page):
         elements = self.driver.find_elements_by_xpath(
             "//div[@class='pageArea']/ul/li/a")
         try:
             self.vendor_max_page = int(elements[-1].get_attribute('pageidx'))
         except IndexError:
-            print(elements)
+            print("「{}」找不到頁數標籤，準備重整頁面並等待10秒...".format(vendor))
             self.driver.refresh()
             time.sleep(10)
-            self.get_vendor_max_page(page)
+            self.get_vendor_max_page(vendor, page)
             
 
     def next_page(self, vendor, page):
@@ -100,7 +100,7 @@ class Crawler:
         time.sleep(self.delay_second)
 
         if page == 1:
-            self.get_vendor_max_page(page)
+            self.get_vendor_max_page(vendor, page)
             print("﹝%s﹞總共有 %d 頁" % (vendor, self.vendor_max_page))
 
         print('=====' + vendor + '==========開始爬第' + str(page) + '頁==========')
