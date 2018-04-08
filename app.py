@@ -1,5 +1,5 @@
 # -- coding: utf-8 --
-#!/usr/bin/python3
+# !/usr/bin/python3
 import os
 import re
 import time
@@ -88,7 +88,6 @@ class Crawler:
             self.driver.refresh()
             time.sleep(10)
             self.get_vendor_max_page(vendor, page)
-            
 
     def next_page(self, vendor, page):
         if page > 1 and page > self.vendor_max_page:
@@ -128,7 +127,7 @@ class Crawler:
             # print(url, image_url, name, slogan, money)
 
             filename = vendor + '_' + \
-                re.sub(self.pattern, "", name) + '_' + the_id + '.jpg'
+                       re.sub(self.pattern, "", name) + '_' + the_id + '.jpg'
             filepath = directory + '/' + filename
             try:
                 urllib.request.urlretrieve(image_url, filepath)
@@ -156,7 +155,7 @@ class Crawler:
                     "img_id": img_id,
                     "ch_name": ch_name,
                 })
-        
+
 
 class Instruction(Enum):
     DBTYPE = "-d"
