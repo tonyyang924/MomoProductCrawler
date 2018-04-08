@@ -6,6 +6,7 @@ import time
 import json
 import urllib.request
 import sys
+import logging
 from pymongo import MongoClient
 from PIL import Image
 from selenium import webdriver
@@ -75,7 +76,8 @@ class Crawler:
     def trigger_click_page(self, vendor):
         try:
             self.next_page(vendor, 1)
-        except WebDriverException:
+        except WebDriverException as err:
+            logging.error(err)
             print('『' + vendor + '』找不到下一頁的按鈕。')
 
     def get_vendor_max_page(self, vendor, page):
@@ -83,7 +85,8 @@ class Crawler:
             "//div[@class='pageArea']/ul/li/a")
         try:
             self.vendor_max_page = int(elements[-1].get_attribute('pageidx'))
-        except IndexError:
+        except IndexError as err:
+            logging.error(err)
             print("「{}」找不到頁數標籤，準備重整頁面並等待10秒...".format(vendor))
             self.driver.refresh()
             time.sleep(10)
@@ -106,7 +109,11 @@ class Crawler:
 
         directory = self.vendor_directory + '/' + vendor
 
-        soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+        try:
+            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+        except TypeError as err:
+            logger.error(err)
+            return
         list_area = soup.find('div', {'class': 'listArea'}).find('ul')
         for item_li in list_area.select('li'):
             item = item_li.select_one('a.goodsUrl')
@@ -132,13 +139,17 @@ class Crawler:
             try:
                 urllib.request.urlretrieve(image_url, filepath)
                 print(filename, image_url)
-            except (urllib.request.HTTPError, urllib.request.URLError, urllib.request.ContentTooShortError, ValueError):
+            except (
+                    urllib.request.HTTPError, urllib.request.URLError, urllib.request.ContentTooShortError,
+                    ValueError) as err:
                 try:
+                    logging.error(err)
                     urllib.request.urlretrieve(little_image_url, filepath)
                     print(filename, little_image_url)
                 except (
                         urllib.request.HTTPError, urllib.request.URLError, urllib.request.ContentTooShortError,
-                        ValueError):
+                        ValueError) as err:
+                    logging.error(err)
                     self.image.save(filepath, "PNG")
                     print(filename, 'empty image')
 
@@ -166,6 +177,11 @@ class DbType(Enum):
 
 
 def main():
+    log_filename = "../tmp/{}.txt".format(time.time())
+    logging.basicConfig(filename=log_filename, level=logging.DEBUG,
+                        format='%(asctime)s %(levelname)s %(name)s %(message)s')
+    global logger
+    logger = logging.getLogger(__name__)
     dbtype = ""
     if len(sys.argv) > 1 and type(sys.argv[1] is str):
         argu = sys.argv[1]
