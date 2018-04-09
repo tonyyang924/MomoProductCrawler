@@ -8,6 +8,7 @@ import urllib.request
 import sys
 import logging
 from pymongo import MongoClient
+import pymongo.errors
 from PIL import Image
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
@@ -159,11 +160,14 @@ class Crawler:
     def writeDb(self, table, vendor, img_id, ch_name):
         for db_name in self.write_db_list:
             if db_name == DbType.MONGO.value:
-                table.insert_one({
-                    "vendor": vendor,
-                    "img_id": img_id,
-                    "ch_name": ch_name,
-                })
+                try:
+                    table.insert_one({
+                        "vendor": vendor,
+                        "img_id": img_id,
+                        "ch_name": ch_name,
+                    })
+                except pymongo.errors.ServerSelectionTimeoutError as err:
+                    logging.error(err)
 
 
 class Instruction(Enum):
