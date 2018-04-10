@@ -11,7 +11,6 @@ from pymongo import MongoClient
 import pymongo.errors
 from PIL import Image
 from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
 from bs4 import BeautifulSoup
 from enum import Enum
 
@@ -73,11 +72,7 @@ class Crawler:
         self.trigger_click_page(vendor)
 
     def trigger_click_page(self, vendor):
-        try:
-            self.next_page(vendor, 1)
-        except WebDriverException as err:
-            logging.error(err)
-            print('『' + vendor + '』找不到下一頁的按鈕。')
+        self.next_page(vendor, 1)
 
     def get_vendor_max_page(self, vendor, page):
         elements = self.driver.find_elements_by_xpath(
