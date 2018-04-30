@@ -1,4 +1,4 @@
-# -- coding: utf-8 --
+# -*- coding: utf-8 -*-
 # !/usr/bin/python3
 import os
 import re
@@ -13,6 +13,7 @@ from PIL import Image
 from selenium import webdriver
 from bs4 import BeautifulSoup
 from enum import Enum
+import argparse
 
 
 class Crawler:
@@ -177,14 +178,16 @@ def create_directory(path):
     if not os.path.exists(path):
         os.makedirs(path)
 
-
 def main():
-    dbtype = ""
-    if len(sys.argv) > 1 and type(sys.argv[1] is str):
-        argu = sys.argv[1]
-        argus = re.split(" ", argu)
-        if argus[0] == Instruction.DBTYPE.value:
-            dbtype = argus[1]
+    parser = argparse.ArgumentParser(
+        prog = "MoMoProductCrawler",
+        )
+    parser.add_argument(
+        "-d", metavar = "database", dest = "database",
+        help = "choice a database which you needs.",
+        )
+    args = parser.parse_args()
+    dbtype = args.database
     crawler = Crawler('../result', dbtype)
     crawler.start()
 
