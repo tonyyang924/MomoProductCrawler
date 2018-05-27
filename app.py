@@ -1,47 +1,87 @@
-#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+# !/usr/bin/python3
 import os
 import re
 import time
 import json
 import urllib.request
 import sys
+import logging
+import subprocess
+import shlex
 from pymongo import MongoClient
+import pymongo.errors
 from PIL import Image
 from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
 from bs4 import BeautifulSoup
 from enum import Enum
+import argparse
 
 
 class Crawler:
-    driver = webdriver.Chrome()
-    momo_url = 'https://www.momoshop.com.tw'
-    pattern = "[-`~!@#$^&*()=|{}':;',\\[\\].<>/?~！@#￥……&*（）&;|{}【】‘；：”“'。，、？+ ]"
-    image = Image.new('RGB', (1, 1), (255, 255, 255))
-    vendor_max_page = 0
-    # MonGo DB
-    client = MongoClient()
-    db = client.surpass
-    write_db_list = []
 
-    def __init__(self, result_directory, dbtype):
-        # result_directory = 'result'
+    class MongoDB():
+
+        def __init__(self, dbpath):
+            print('使用MongoDB儲存資料')
+            Crawler.create_directory(self, dbpath)
+            self.mongod = subprocess.Popen(
+                shlex.split(
+                    "mongod --dbpath {0}".format(os.path.expanduser(dbpath)))
+            )
+            self.client = MongoClient()
+            self.db_mongo = self.client.surpass
+            self.table_vendor = self.db_mongo.vendor
+
+        def get_vendor_table(self):
+            return self.table_vendor
+
+        def write(self, vendor, img_id, ch_name):
+            try:
+                self.table_vendor.update({"img_id": img_id}, {
+                                         "img_id": img_id, "vendor": vendor, "ch_name": ch_name}, True)
+            except pymongo.errors.ServerSelectionTimeoutError as err:
+                logging.error(err)
+
+        def terminate(self):
+            self.mongod.terminate()
+
+    def __init__(self, result_directory, dbtype, dbpath):
         self.result_directory = result_directory
         self.vendor_directory = result_directory + '/vendor'
-        self.create_directory(result_directory)
-        self.create_directory(self.vendor_directory)
         self.vendors = self.load_vendors()
-        self.table_vendor = self.db.vendor
-        if dbtype == DbType.MONGO.value:
-            self.write_db_list.append(DbType.MONGO.value)
+        self.momo_host = 'https://www.momoshop.com.tw'
+        self.pattern = "[-`~!@#$^&*()=|{}':;',\\[\\].<>/?~！@#￥……&*（）&;|{}【】‘；：”“'。，、？+ ]"
+        self.image = Image.new('RGB', (1, 1), (255, 255, 255))
+        self.init_logger()
+        self.init_directories
+        self.init_database(dbtype, dbpath)
+
+    def init_database(self, dbtype, dbpath):
+        self.dbtype_objects = {'mongo': self.MongoDB}
+        if dbtype is not None and dbpath is not None:
+            self.db = self.dbtype_objects[dbtype](dbpath)
+
+    def init_logger(self):
+        log_filename = "{}/{}.txt".format(self.result_directory, time.time())
+        logging.basicConfig(filename=log_filename, level=logging.DEBUG)
+        global logger
+        logger = logging.getLogger(__name__)
+
+    def init_directories(self):
+        self.create_directory(self.result_directory)
+        self.create_directory(self.vendor_directory)
 
     def start(self):
+        self.driver = webdriver.Chrome()
+        self.delay_second = 5
+        self.vendor_max_page = 0
         for vendor in self.vendors:
             self.crawler_vendor(vendor)
         self.driver.quit()
+        self.db.terminate()
 
-    @staticmethod
-    def create_directory(path):
+    def create_directory(self, path):
         if not os.path.exists(path):
             os.makedirs(path)
 
@@ -71,39 +111,53 @@ class Crawler:
         self.trigger_click_page(vendor)
 
     def trigger_click_page(self, vendor):
+        self.next_page(vendor, 1)
+
+    def get_vendor_max_page(self, vendor, page):
+        elements = self.driver.find_elements_by_xpath(
+            "//div[@class='pageArea']/ul/li/a")
         try:
-            self.next_page(vendor, 1)
-        except WebDriverException:
-            print('『' + vendor + '』找不到下一頁的按鈕。')
+            self.vendor_max_page = int(elements[-1].get_attribute('pageidx'))
+        except IndexError as err:
+            logging.error(err)
+            print("「{}」找不到頁數標籤，準備重整頁面並等待10秒...".format(vendor))
+            self.driver.refresh()
+            time.sleep(10)
+            self.get_vendor_max_page(vendor, page)
 
     def next_page(self, vendor, page):
-
         if page > 1 and page > self.vendor_max_page:
             print(vendor + '沒有下一頁了')
             return
 
         self.driver.get(
             'https://www.momoshop.com.tw/search/searchShop.jsp?keyword=' + vendor + '&curPage=' + str(page))
-        time.sleep(2.5)
+        time.sleep(self.delay_second)
 
         if page == 1:
-            elements = self.driver.find_elements_by_xpath(
-                "//div[@class='pageArea']/ul/li/a")
-            self.vendor_max_page = int(elements[-1].get_attribute('pageidx'))
+            self.get_vendor_max_page(vendor, page)
             print("﹝%s﹞總共有 %d 頁" % (vendor, self.vendor_max_page))
 
         print('=====' + vendor + '==========開始爬第' + str(page) + '頁==========')
 
         directory = self.vendor_directory + '/' + vendor
 
-        soup = BeautifulSoup(self.driver.page_source, 'html.parser')
-        list_area = soup.find('div', {'class': 'listArea'}).find('ul')
-        for item_li in list_area.select('li'):
+        try:
+            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+        except TypeError as err:
+            print(err)
+            logger.error(err)
+            return
+
+        items = self.get_each_item(soup)
+        print("[" + vendor + "] 第 " + str(page) +
+              " 頁共有 " + str(len(items)) + " 個")
+        for item_li in items:
             item = item_li.select_one('a.goodsUrl')
             # 產品編號
             the_id = item_li['gcode']
             # 產品網址
-            # url = momo_url + item['href']
+            url = self.momo_host + item['href']
             # 產品大圖網址，置換小的圖片網址為大的
             little_image_url = item.find('img')['src']
             image_url = little_image_url.replace('L.jpg', 'B.jpg')
@@ -122,47 +176,51 @@ class Crawler:
             try:
                 urllib.request.urlretrieve(image_url, filepath)
                 print(filename, image_url)
-            except (urllib.request.HTTPError, urllib.request.URLError, urllib.request.ContentTooShortError, ValueError):
+            except (
+                    urllib.request.HTTPError, urllib.request.URLError, urllib.request.ContentTooShortError,
+                    ValueError) as err:
                 try:
+                    logging.error(err)
                     urllib.request.urlretrieve(little_image_url, filepath)
                     print(filename, little_image_url)
                 except (
                         urllib.request.HTTPError, urllib.request.URLError, urllib.request.ContentTooShortError,
-                        ValueError):
+                        ValueError) as err:
+                    logging.error(err)
                     self.image.save(filepath, "PNG")
                     print(filename, 'empty image')
 
             # save db
-            self.writeDb(self.table_vendor, vendor, the_id, name)
+            self.db.write(vendor, the_id, name)
 
         self.next_page(vendor, page + 1)
 
-    def writeDb(self, table, vendor, img_id, ch_name):
-        for db_name in self.write_db_list:
-            if db_name == DbType.MONGO.value:
-                table.insert_one({
-                    "vendor": vendor,
-                    "img_id": img_id,
-                    "ch_name": ch_name,
-                })
-        
-
-class Instruction(Enum):
-    DBTYPE = "-d"
-
-
-class DbType(Enum):
-    MONGO = "mongo"
+    def get_each_item(self, soup):
+        list_area = soup.find('div', {'class': 'listArea'}).find('ul')
+        return list_area.select('li')
 
 
 def main():
-    dbtype = ""
-    if len(sys.argv) > 1 and type(sys.argv[1] is str):
-        argu = sys.argv[1]
-        argus = re.split(" ", argu)
-        if argus[0] == Instruction.DBTYPE.value:
-            dbtype = argus[1]
-    crawler = Crawler('result', dbtype)
+    parser = argparse.ArgumentParser(
+        prog="MomoProductCrawler",
+    )
+    parser.add_argument(
+        "-r", metavar="result_directory", dest="result_directory",
+        help="choice a directory to save momo images.",
+    )
+    parser.add_argument(
+        "-d", metavar="database", dest="database",
+        help="choice a database which you needs.",
+    )
+    parser.add_argument(
+        "-dbpath", metavar="database_path", dest="database_path",
+        help="choice a database dbpath where you save."
+    )
+    args = parser.parse_args()
+    result_directory = args.result_directory
+    dbtype = args.database
+    dbpath = args.database_path
+    crawler = Crawler(result_directory, dbtype, dbpath)
     crawler.start()
 
 
