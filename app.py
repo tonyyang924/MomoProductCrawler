@@ -24,6 +24,7 @@ class Crawler:
 
         def __init__(self, dbpath):
             print('使用MongoDB儲存資料')
+            Crawler.create_directory(self, dbpath)
             self.mongod = subprocess.Popen(
                 shlex.split(
                     "mongod --dbpath {0}".format(os.path.expanduser(dbpath)))
@@ -37,11 +38,8 @@ class Crawler:
 
         def write(self, vendor, img_id, ch_name):
             try:
-                self.table_vendor.insert_one({
-                    "vendor": vendor,
-                    "img_id": img_id,
-                    "ch_name": ch_name,
-                })
+                self.table_vendor.update({"img_id": img_id}, {
+                                         "img_id": img_id, "vendor": vendor, "ch_name": ch_name}, True)
             except pymongo.errors.ServerSelectionTimeoutError as err:
                 logging.error(err)
 
@@ -61,7 +59,7 @@ class Crawler:
 
     def init_database(self, dbtype, dbpath):
         self.dbtype_objects = {'mongo': self.MongoDB}
-        if dbtype is not None and dbpath is not None:    
+        if dbtype is not None and dbpath is not None:
             self.db = self.dbtype_objects[dbtype](dbpath)
 
     def init_logger(self):
@@ -147,10 +145,14 @@ class Crawler:
         try:
             soup = BeautifulSoup(self.driver.page_source, 'html.parser')
         except TypeError as err:
+            print(err)
             logger.error(err)
             return
-        list_area = soup.find('div', {'class': 'listArea'}).find('ul')
-        for item_li in list_area.select('li'):
+
+        items = self.get_each_item(soup)
+        print("[" + vendor + "] 第 " + str(page) +
+              " 頁共有 " + str(len(items)) + " 個")
+        for item_li in items:
             item = item_li.select_one('a.goodsUrl')
             # 產品編號
             the_id = item_li['gcode']
@@ -192,6 +194,10 @@ class Crawler:
             self.db.write(vendor, the_id, name)
 
         self.next_page(vendor, page + 1)
+
+    def get_each_item(self, soup):
+        list_area = soup.find('div', {'class': 'listArea'}).find('ul')
+        return list_area.select('li')
 
 
 def main():
