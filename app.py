@@ -36,10 +36,10 @@ class Crawler:
         def get_vendor_table(self):
             return self.table_vendor
 
-        def write(self, vendor, img_id, ch_name):
+        def write(self, pro_id, pro_vendor, pro_name, pro_class):
             try:
-                self.table_vendor.update({"img_id": img_id}, {
-                                         "img_id": img_id, "vendor": vendor, "ch_name": ch_name}, True)
+                self.table_vendor.update({"pro_id": pro_id}, {
+                                         "pro_id": pro_id, "pro_vendor": pro_vendor, "pro_name": pro_name, "pro_class": pro_class}, True)
             except pymongo.errors.ServerSelectionTimeoutError as err:
                 logging.error(err)
 
@@ -155,34 +155,27 @@ class Crawler:
         for item_li in items:
             item = item_li.select_one('a.goodsUrl')
             # 產品編號
-            the_id = item_li['gcode']
+            pro_id = item_li['gcode']
             # 產品網址
-            url = self.momo_host + item['href']
+            pro_url = self.momo_host + item['href']
             # 產品大圖網址，置換小的圖片網址為大的
-            little_image_url = item.find('img')['src']
-            image_url = little_image_url.replace('L.jpg', 'B.jpg')
+            pro_little_image_url = item.find('img')['src']
+            pro_image_url = pro_little_image_url.replace('L.jpg', 'B.jpg')
             # 產品名稱
-            name = item.find('p', {'class': 'prdName'}).text
-            # 產品Slogan
-            # slogan = item.find('p', {'class': 'sloganTitle'}).text
-            # 產品價格
-            money_text = item.find('p', {'class': 'money'}).text
-            # money = get_number(money_text)
-            # print(url, image_url, name, slogan, money)
-
+            pro_name = item.find('p', {'class': 'prdName'}).text
             filename = vendor + '_' + \
-                re.sub(self.pattern, "", name) + '_' + the_id + '.jpg'
+                re.sub(self.pattern, "", pro_name) + '_' + pro_id + '.jpg'
             filepath = directory + '/' + filename
             try:
-                urllib.request.urlretrieve(image_url, filepath)
-                print(filename, image_url)
+                urllib.request.urlretrieve(pro_image_url, filepath)
+                print(filename, pro_image_url)
             except (
                     urllib.request.HTTPError, urllib.request.URLError, urllib.request.ContentTooShortError,
                     ValueError) as err:
                 try:
                     logging.error(err)
-                    urllib.request.urlretrieve(little_image_url, filepath)
-                    print(filename, little_image_url)
+                    urllib.request.urlretrieve(pro_little_image_url, filepath)
+                    print(filename, pro_little_image_url)
                 except (
                         urllib.request.HTTPError, urllib.request.URLError, urllib.request.ContentTooShortError,
                         ValueError) as err:
@@ -190,9 +183,19 @@ class Crawler:
                     self.image.save(filepath, "PNG")
                     print(filename, 'empty image')
 
+            # enter to the detail page of this item
+            self.driver.get(pro_url)
+            time.sleep(self.delay_second)
+            try:
+                soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+            except TypeError as err:
+                print(err)
+                logger.error(err)
+                return
+            bt_category_title = soup.find('div', {'id': 'bt_category_title'})            
+            pro_class = bt_category_title.text.strip()
             # save db
-            self.db.write(vendor, the_id, name)
-
+            self.db.write(pro_id, vendor, pro_name, pro_class)
         self.next_page(vendor, page + 1)
 
     def get_each_item(self, soup):
