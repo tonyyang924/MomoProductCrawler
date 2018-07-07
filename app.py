@@ -36,11 +36,10 @@ class Crawler:
         def get_vendor_table(self):
             return self.table_vendor
 
-        def write(self, pro_id, pro_vendor, pro_name, pro_class):
+        def write(self, filter, update):
             try:
-                self.table_vendor.update({"pro_id": pro_id}, {
-                                         "pro_id": pro_id, "pro_vendor": pro_vendor, "pro_name": pro_name, "pro_class": pro_class}, True)
-            except pymongo.errors.ServerSelectionTimeoutError as err:
+                self.table_vendor.find_one_and_update(filter, update, upsert=True)
+            except pymongo.errors.ServerSelectionTimeoutError:
                 print('ServerSelectionTimeoutError')
 
         def terminate(self):
@@ -198,7 +197,17 @@ class Crawler:
             pro_class = bt_category_title.text.strip()
             
             # save db
-            self.db.write(pro_id, vendor, pro_name, pro_class)
+            self.db.write({"pro_id": pro_id}, {
+                "$set": {
+                    "pro_id": pro_id,
+                    "pro_vendor": vendor,
+                    "pro_name": pro_name,
+                    "pro_class": pro_class,
+                }, 
+                "$currentDate": {
+                    "createtime": True
+                }
+            })
 
         self.next_page(vendor, page + 1)
 
