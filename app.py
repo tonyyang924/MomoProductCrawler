@@ -41,7 +41,7 @@ class Crawler:
                 self.table_vendor.update({"pro_id": pro_id}, {
                                          "pro_id": pro_id, "pro_vendor": pro_vendor, "pro_name": pro_name, "pro_class": pro_class}, True)
             except pymongo.errors.ServerSelectionTimeoutError as err:
-                logging.error(err)
+                print('ServerSelectionTimeoutError')
 
         def terminate(self):
             self.mongod.terminate()
@@ -53,7 +53,8 @@ class Crawler:
         self.momo_host = 'https://www.momoshop.com.tw'
         self.pattern = "[-`~!@#$^&*()=|{}':;',\\[\\].<>/?~！@#￥……&*（）&;|{}【】‘；：”“'。，、？+ ]"
         self.image = Image.new('RGB', (1, 1), (255, 255, 255))
-        self.init_logger()
+        # 先不使用logger，等確定要追蹤哪些資訊再埋
+        # self.init_logger()
         self.init_directories
         self.init_database(dbtype, dbpath)
 
@@ -118,8 +119,7 @@ class Crawler:
             "//div[@class='pageArea']/ul/li/a")
         try:
             self.vendor_max_page = int(elements[-1].get_attribute('pageidx'))
-        except IndexError as err:
-            logging.error(err)
+        except IndexError:
             print("「{}」找不到頁數標籤，準備重整頁面並等待10秒...".format(vendor))
             self.driver.refresh()
             time.sleep(10)
@@ -146,7 +146,6 @@ class Crawler:
             soup = BeautifulSoup(self.driver.page_source, 'html.parser')
         except TypeError as err:
             print(err)
-            logger.error(err)
             return
 
         items = self.get_each_item(soup)
@@ -154,18 +153,24 @@ class Crawler:
               " 頁共有 " + str(len(items)) + " 個")
         for item_li in items:
             item = item_li.select_one('a.goodsUrl')
+            
             # 產品編號
             pro_id = item_li['gcode']
+            
             # 產品網址
             pro_url = self.momo_host + item['href']
+            
             # 產品大圖網址，置換小的圖片網址為大的
             pro_little_image_url = item.find('img')['src']
             pro_image_url = pro_little_image_url.replace('L.jpg', 'B.jpg')
+            
             # 產品名稱
             pro_name = item.find('p', {'class': 'prdName'}).text
             filename = vendor + '_' + \
                 re.sub(self.pattern, "", pro_name) + '_' + pro_id + '.jpg'
             filepath = directory + '/' + filename
+
+            # 先抓大圖再抓小圖，抓不到就存空圖
             try:
                 urllib.request.urlretrieve(pro_image_url, filepath)
                 print(filename, pro_image_url)
@@ -173,13 +178,11 @@ class Crawler:
                     urllib.request.HTTPError, urllib.request.URLError, urllib.request.ContentTooShortError,
                     ValueError) as err:
                 try:
-                    logging.error(err)
                     urllib.request.urlretrieve(pro_little_image_url, filepath)
                     print(filename, pro_little_image_url)
                 except (
                         urllib.request.HTTPError, urllib.request.URLError, urllib.request.ContentTooShortError,
                         ValueError) as err:
-                    logging.error(err)
                     self.image.save(filepath, "PNG")
                     print(filename, 'empty image')
 
@@ -190,12 +193,13 @@ class Crawler:
                 soup = BeautifulSoup(self.driver.page_source, 'html.parser')
             except TypeError as err:
                 print(err)
-                logger.error(err)
                 return
             bt_category_title = soup.find('div', {'id': 'bt_category_title'})            
             pro_class = bt_category_title.text.strip()
+            
             # save db
             self.db.write(pro_id, vendor, pro_name, pro_class)
+
         self.next_page(vendor, page + 1)
 
     def get_each_item(self, soup):
