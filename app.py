@@ -185,6 +185,13 @@ class Crawler:
                     self.image.save(filepath, "PNG")
                     print(filename, 'empty image')
 
+            # save info to dictionary
+            set_dict = {
+                "pro_id": pro_id,
+                "pro_vendor": vendor,
+                "pro_name": pro_name
+            }
+
             # enter to the detail page of this item
             self.driver.get(pro_url)
             time.sleep(self.delay_second)
@@ -193,17 +200,14 @@ class Crawler:
             except TypeError as err:
                 print(err)
                 return
-            bt_category_title = soup.find('div', {'id': 'bt_category_title'})            
-            pro_class = bt_category_title.text.strip()
+            bt_category_title = soup.find('div', {'id': 'bt_category_title'})
+            if bt_category_title is not None:
+                pro_class = bt_category_title.text.strip()
+                set_dict['pro_class'] = pro_class
             
             # save db
             self.db.write({"pro_id": pro_id}, {
-                "$set": {
-                    "pro_id": pro_id,
-                    "pro_vendor": vendor,
-                    "pro_name": pro_name,
-                    "pro_class": pro_class,
-                }, 
+                "$set": set_dict,
                 "$currentDate": {
                     "createtime": True
                 }
