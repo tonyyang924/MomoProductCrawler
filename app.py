@@ -108,9 +108,6 @@ class Crawler:
 
     def crawler_vendor(self, vendor):
         self.create_directory(self.vendor_directory + '/' + vendor)
-        self.trigger_click_page(vendor)
-
-    def trigger_click_page(self, vendor):
         self.next_page(vendor, 1)
 
     def get_vendor_max_page(self, vendor, page):
@@ -128,7 +125,10 @@ class Crawler:
         if page > 1 and page > self.vendor_max_page:
             print(vendor + '沒有下一頁了')
             return
+        self.redirect_to_page(vendor, page)
+        self.next_page(vendor, page + 1)
 
+    def redirect_to_page(self, vendor, page):
         self.driver.get(
             'https://www.momoshop.com.tw/search/searchShop.jsp?keyword=' + vendor + '&curPage=' + str(page))
         time.sleep(self.delay_second)
@@ -212,8 +212,6 @@ class Crawler:
                     "createtime": True
                 }
             })
-
-        self.next_page(vendor, page + 1)
 
     def get_each_item(self, soup):
         list_area = soup.find('div', {'class': 'listArea'}).find('ul')
