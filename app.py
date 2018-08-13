@@ -19,7 +19,11 @@ import argparse
 
 
 class Crawler:
-
+    delay_second = 5
+    momo_host = 'https://www.momoshop.com.tw'
+    pattern = "[-`~!@#$^&*()=|{}':;',\\[\\].<>/?~！@#￥……&*（）&;|{}【】‘；：”“'。，、？+ ]"
+    image = Image.new('RGB', (1, 1), (255, 255, 255))
+    
     class MongoDB():
 
         def __init__(self, dbpath):
@@ -38,7 +42,8 @@ class Crawler:
 
         def write(self, filter, update):
             try:
-                self.table_vendor.find_one_and_update(filter, update, upsert=True)
+                self.table_vendor.find_one_and_update(
+                    filter, update, upsert=True)
             except pymongo.errors.ServerSelectionTimeoutError:
                 print('ServerSelectionTimeoutError')
 
@@ -49,9 +54,6 @@ class Crawler:
         self.result_directory = result_directory
         self.vendor_directory = result_directory + '/vendor'
         self.vendors = self.load_vendors()
-        self.momo_host = 'https://www.momoshop.com.tw'
-        self.pattern = "[-`~!@#$^&*()=|{}':;',\\[\\].<>/?~！@#￥……&*（）&;|{}【】‘；：”“'。，、？+ ]"
-        self.image = Image.new('RGB', (1, 1), (255, 255, 255))
         # 先不使用logger，等確定要追蹤哪些資訊再埋
         # self.init_logger()
         self.init_directories
@@ -74,8 +76,6 @@ class Crawler:
 
     def start(self):
         self.driver = webdriver.Chrome()
-        self.delay_second = 5
-        self.vendor_max_page = 0
         for vendor in self.vendors:
             self.crawler_vendor(vendor)
         self.driver.quit()
@@ -107,14 +107,19 @@ class Crawler:
         return arr
 
     def crawler_vendor(self, vendor):
+        self.vendor_max_page = 0
+        self.is_click_precision_brand = False
         self.create_directory(self.vendor_directory + '/' + vendor)
         self.next_page(vendor, 1)
 
     def get_vendor_max_page(self, vendor, page):
+        if self.is_click_precision_brand == False:
+            return
         elements = self.driver.find_elements_by_xpath(
             "//div[@class='pageArea']/ul/li/a")
         try:
             self.vendor_max_page = int(elements[-1].get_attribute('pageidx'))
+            print("﹝%s﹞總共有 %d 頁" % (vendor, self.vendor_max_page))
         except IndexError:
             print("「{}」找不到頁數標籤，準備重整頁面並等待10秒...".format(vendor))
             self.driver.refresh()
@@ -134,35 +139,28 @@ class Crawler:
         time.sleep(self.delay_second)
 
         if page == 1:
+            self.click_precision_brand(self.driver.page_source)
             self.get_vendor_max_page(vendor, page)
-            print("﹝%s﹞總共有 %d 頁" % (vendor, self.vendor_max_page))
 
         print('=====' + vendor + '==========開始爬第' + str(page) + '頁==========')
-
         directory = self.vendor_directory + '/' + vendor
-
-        try:
-            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
-        except TypeError as err:
-            print(err)
-            return
-
+        soup = self.get_soup(self.driver.page_source)
         items = self.get_each_item(soup)
         print("[" + vendor + "] 第 " + str(page) +
               " 頁共有 " + str(len(items)) + " 個")
         for item_li in items:
             item = item_li.select_one('a.goodsUrl')
-            
+
             # 產品編號
             pro_id = item_li['gcode']
-            
+
             # 產品網址
             pro_url = self.momo_host + item['href']
-            
+
             # 產品大圖網址，置換小的圖片網址為大的
             pro_little_image_url = item.find('img')['src']
             pro_image_url = pro_little_image_url.replace('L.jpg', 'B.jpg')
-            
+
             # 產品名稱
             pro_name = item.find('p', {'class': 'prdName'}).text
             filename = vendor + '_' + \
@@ -204,7 +202,7 @@ class Crawler:
             if bt_category_title is not None:
                 pro_class = bt_category_title.text.strip()
                 set_dict['pro_class'] = pro_class
-            
+
             # save db
             self.db.write({"pro_id": pro_id}, {
                 "$set": set_dict,
@@ -212,6 +210,36 @@ class Crawler:
                     "createtime": True
                 }
             })
+
+    def click_precision_brand(self, page_source):
+        if self.is_click_precision_brand:
+            return
+        
+        soup = self.get_soup(page_source)
+        items = soup.find('ul', {'class': 'brandsList'}).select('li')
+        index = 0
+        max_num = 0
+        max_num_index = 0
+        for item_li in items:
+            text = item_li.text
+            num = int(re.findall('\d+', text)[0])
+            if max_num < num:
+                max_num = num
+                max_num_index = index
+            index = index + 1
+
+        # 點擊數量最多的品牌
+        element = self.driver.find_elements_by_xpath("//tr[@class='goodsBrandTr']//div[@class='wrapDiv']//ul//li")[max_num_index]
+        element.click()
+        time.sleep(5)
+        self.is_click_precision_brand = True
+
+    def get_soup(self, page_source):
+        try:
+            return BeautifulSoup(self.driver.page_source, 'html.parser')
+        except TypeError as err:
+            print(err)
+            return
 
     def get_each_item(self, soup):
         list_area = soup.find('div', {'class': 'listArea'}).find('ul')
