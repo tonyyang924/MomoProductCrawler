@@ -1,4 +1,4 @@
-pymongo==3.4.0
 selenium==3.0.2
-Pillow==5.1.0
+pymongo==3.4.0
+Pillow==5.2.0
 beautifulsoup4==4.6.0
