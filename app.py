@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# !/usr/bin/python3
 import os
 import re
 import time
@@ -13,6 +12,7 @@ from pymongo import MongoClient
 import pymongo.errors
 from PIL import Image
 from selenium import webdriver
+from selenium.webdriver.common.action_chains import ActionChains
 from bs4 import BeautifulSoup
 from enum import Enum
 import argparse
@@ -24,7 +24,7 @@ class Crawler:
     pattern = "[-`~!@#$^&*()=|{}':;',\\[\\].<>/?~！@#￥……&*（）&;|{}【】‘；：”“'。，、？+ ]"
     image = Image.new('RGB', (1, 1), (255, 255, 255))
     
-    class MongoDB():
+    class MongoDB:
 
         def __init__(self, dbpath):
             print('使用MongoDB儲存資料')
@@ -228,9 +228,13 @@ class Crawler:
                 max_num_index = index
             index = index + 1
 
-        # 點擊數量最多的品牌
-        element = self.driver.find_elements_by_xpath("//tr[@class='goodsBrandTr']//div[@class='wrapDiv']//ul//li")[max_num_index]
-        element.click()
+        # 取得數量最多的品牌
+        max_num_brand = self.driver.find_elements_by_xpath("//tr[@class='goodsBrandTr']//div[@class='wrapDiv']//ul//li")[max_num_index]
+        # 移動展開更多選擇按鈕
+        element_to_hover_over = self.driver.find_element_by_class_name("multipleChoiceBtn")
+        actions = ActionChains(self.driver).move_to_element(element_to_hover_over)
+        actions.click(max_num_brand)
+        actions.perform()
         time.sleep(5)
         self.is_click_precision_brand = True
 
