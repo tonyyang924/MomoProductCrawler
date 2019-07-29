@@ -1,5 +1,8 @@
 # MomoProductCrawler
 
+This is a crawler script for MOMO website, to get vendor information, image there. 
+* Developed with python. Use selenium open browser to connect website and get the vendor info which extracting all the image URL and information through BeautifulSoup library from html, then download vendor’s image and stored vendor’s name, price, category, vendor name, etc… to MongoDB.
+
 ## Get Started
 
 ### Environment
