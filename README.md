@@ -30,3 +30,7 @@ $ brew install mongodb
 $ mkdir -p result/db
 $ python app.py -r result -d mongo -dbpath result/db
 ```
+
+## Screenshots
+
+<img src="screenshots/run.png" />
