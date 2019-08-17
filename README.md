@@ -14,13 +14,21 @@ $ python3 get-pip.py
 $ pip install virtualenv
 $ git clone git@gitlab.com:surpasstw/paritytw/MomoProductCrawler.git
 $ cd MomoProductCrawler
-# Create an independent environment
+```
+Create an independent environment
+```
 $ virtualenv venv
-# Entering the environment
+```
+Entering the environment
+```
 $ source venv/bin/activate
-# Install requirement packages
+```
+Install requirement packages
+```
 $ pip3 install -r requirements.txt
-# Install mongodb
+```
+Install mongodb
+```
 $ brew install mongodb
 ```
 
